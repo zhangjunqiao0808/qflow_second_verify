@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>短信验证</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .verification-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .phone-display {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid #e9ecef;
+        }
+
+        .phone-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+            text-align: left;
+        }
+
+        .phone-number {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            text-align: left;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .verification-input {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 16px;
+            text-align: center;
+            letter-spacing: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .verification-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .send-code-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+        }
+
+        .send-code-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .send-code-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .verify-btn {
+            width: 100%;
+            padding: 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .verify-btn:hover:not(:disabled) {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .verify-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .countdown {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 8px;
+            padding: 8px;
+            background: #f8d7da;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .success-message {
+            color: #155724;
+            font-size: 14px;
+            margin-top: 8px;
+            padding: 8px;
+            background: #d4edda;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .resend-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="verification-container">
+        <div class="logo">📱</div>
+        <h1>短信验证</h1>
+        <p class="subtitle">请输入收到的验证码完成验证</p>
+
+        <div class="phone-display">
+            <div class="phone-label">验证手机号</div>
+            <div class="phone-number" id="phoneNumber">加载中...</div>
+        </div>
+
+        <div class="input-group">
+            <button id="sendCodeBtn" class="send-code-btn">
+                <span id="sendBtnText">发送验证码</span>
+                <span id="sendBtnLoading" class="loading" style="display: none;"></span>
+            </button>
+            <div id="countdown" class="countdown" style="display: none;"></div>
+        </div>
+
+        <div class="input-group">
+            <input 
+                type="text" 
+                id="verificationCode" 
+                class="verification-input" 
+                placeholder="请输入6位验证码"
+                maxlength="6"
+                pattern="[0-9]*"
+                inputmode="numeric"
+            >
+        </div>
+
+        <button id="verifyBtn" class="verify-btn" disabled>
+            <span id="verifyBtnText">验证</span>
+            <span id="verifyBtnLoading" class="loading" style="display: none;"></span>
+        </button>
+
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <div class="resend-hint">
+            没有收到验证码？<span id="resendTimer"></span>
+        </div>
+    </div>
+
+    <script>
+        class SMSVerification {
+            constructor() {
+                this.phoneNumber = '';
+                this.redirectUrl = this.getRedirectUrl();
+                this.countdownTimer = null;
+                this.countdownSeconds = 60;
+                
+                this.initElements();
+                this.bindEvents();
+                this.loadPhoneNumber();
+            }
+
+            // 从URL参数获取跳转地址
+            getRedirectUrl() {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get('redirect') || urlParams.get('redirectUrl') || '/dashboard';
+            }
+
+            initElements() {
+                this.phoneDisplay = document.getElementById('phoneNumber');
+                this.sendCodeBtn = document.getElementById('sendCodeBtn');
+                this.sendBtnText = document.getElementById('sendBtnText');
+                this.sendBtnLoading = document.getElementById('sendBtnLoading');
+                this.verificationInput = document.getElementById('verificationCode');
+                this.verifyBtn = document.getElementById('verifyBtn');
+                this.verifyBtnText = document.getElementById('verifyBtnText');
+                this.verifyBtnLoading = document.getElementById('verifyBtnLoading');
+                this.errorMessage = document.getElementById('errorMessage');
+                this.successMessage = document.getElementById('successMessage');
+                this.countdownDisplay = document.getElementById('countdown');
+                this.resendTimer = document.getElementById('resendTimer');
+            }
+
+            bindEvents() {
+                this.sendCodeBtn.addEventListener('click', () => this.sendVerificationCode());
+                this.verifyBtn.addEventListener('click', () => this.verifyCode());
+                this.verificationInput.addEventListener('input', (e) => this.handleCodeInput(e));
+                this.verificationInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && this.verificationInput.value.length === 6) {
+                        this.verifyCode();
+                    }
+                });
+            }
+
+            // 接口1：获取手机号
+            async loadPhoneNumber() {
+                try {
+                    // 这里替换为您的实际API端点
+                    const response = await fetch('/api/user/phone', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // 添加认证头，如果需要的话
+                            // 'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('获取手机号失败');
+                    }
+
+                    const data = await response.json();
+                    this.phoneNumber = data.phone || data.phoneNumber || data.mobile;
+                    
+                    // 显示脱敏的手机号
+                    this.phoneDisplay.textContent = this.maskPhoneNumber(this.phoneNumber);
+                } catch (error) {
+                    console.error('获取手机号错误:', error);
+                    this.showError('获取手机号失败，请刷新页面重试');
+                    // 如果无法获取手机号，可以显示一个默认值或者让用户输入
+                    this.phoneDisplay.textContent = '获取失败';
+                }
+            }
+
+            // 脱敏显示手机号
+            maskPhoneNumber(phone) {
+                if (!phone || phone.length < 11) return phone;
+                return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+            }
+
+            // 接口2：发送验证码
+            async sendVerificationCode() {
+                if (!this.phoneNumber) {
+                    this.showError('手机号获取失败，请刷新页面重试');
+                    return;
+                }
+
+                this.setLoadingState(this.sendCodeBtn, this.sendBtnText, this.sendBtnLoading, true);
+                this.hideMessages();
+
+                try {
+                    // 这里替换为您的实际API端点
+                    const response = await fetch('/api/sms/send', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // 添加认证头，如果需要的话
+                            // 'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        },
+                        body: JSON.stringify({
+                            phone: this.phoneNumber,
+                            type: 'verification' // 验证类型
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || '发送验证码失败');
+                    }
+
+                    const data = await response.json();
+                    this.showSuccess('验证码已发送到您的手机');
+                    this.startCountdown();
+                    
+                } catch (error) {
+                    console.error('发送验证码错误:', error);
+                    this.showError(error.message || '发送验证码失败，请重试');
+                } finally {
+                    this.setLoadingState(this.sendCodeBtn, this.sendBtnText, this.sendBtnLoading, false);
+                }
+            }
+
+            // 验证码输入处理
+            handleCodeInput(e) {
+                // 只允许数字输入
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                
+                // 启用/禁用验证按钮
+                this.verifyBtn.disabled = e.target.value.length !== 6;
+                
+                // 自动验证（可选）
+                if (e.target.value.length === 6) {
+                    // 可以选择自动验证或者让用户手动点击
+                    // this.verifyCode();
+                }
+            }
+
+            // 验证验证码
+            async verifyCode() {
+                const code = this.verificationInput.value;
+                if (code.length !== 6) {
+                    this.showError('请输入6位验证码');
+                    return;
+                }
+
+                this.setLoadingState(this.verifyBtn, this.verifyBtnText, this.verifyBtnLoading, true);
+                this.hideMessages();
+
+                try {
+                    // 这里替换为您的实际API端点
+                    const response = await fetch('/api/sms/verify', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // 添加认证头，如果需要的话
+                            // 'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        },
+                        body: JSON.stringify({
+                            phone: this.phoneNumber,
+                            code: code
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || '验证码错误');
+                    }
+
+                    const data = await response.json();
+                    this.showSuccess('验证成功，即将跳转...');
+                    
+                    // 验证成功后跳转
+                    setTimeout(() => {
+                        this.redirectToTargetUrl();
+                    }, 1500);
+                    
+                } catch (error) {
+                    console.error('验证错误:', error);
+                    this.showError(error.message || '验证失败，请检查验证码');
+                    this.verificationInput.value = '';
+                    this.verificationInput.focus();
+                } finally {
+                    this.setLoadingState(this.verifyBtn, this.verifyBtnText, this.verifyBtnLoading, false);
+                }
+            }
+
+            // 跳转到目标URL
+            redirectToTargetUrl() {
+                // 可以在这里添加额外的参数
+                const url = new URL(this.redirectUrl, window.location.origin);
+                
+                // 可选：添加验证成功的标识参数
+                url.searchParams.set('verified', 'true');
+                url.searchParams.set('timestamp', Date.now());
+                
+                window.location.href = url.toString();
+            }
+
+            // 倒计时功能
+            startCountdown() {
+                this.sendCodeBtn.disabled = true;
+                this.countdownSeconds = 60;
+                this.countdownDisplay.style.display = 'block';
+                
+                this.countdownTimer = setInterval(() => {
+                    this.countdownSeconds--;
+                    this.countdownDisplay.textContent = `${this.countdownSeconds}秒后可重新发送`;
+                    this.resendTimer.textContent = `${this.countdownSeconds}秒后可重新发送`;
+                    
+                    if (this.countdownSeconds <= 0) {
+                        clearInterval(this.countdownTimer);
+                        this.sendCodeBtn.disabled = false;
+                        this.sendBtnText.textContent = '重新发送';
+                        this.countdownDisplay.style.display = 'none';
+                        this.resendTimer.textContent = '点击重新发送';
+                    }
+                }, 1000);
+            }
+
+            // 设置加载状态
+            setLoadingState(button, textElement, loadingElement, isLoading) {
+                button.disabled = isLoading;
+                textElement.style.display = isLoading ? 'none' : 'inline';
+                loadingElement.style.display = isLoading ? 'inline-block' : 'none';
+            }
+
+            // 显示错误信息
+            showError(message) {
+                this.errorMessage.textContent = message;
+                this.errorMessage.style.display = 'block';
+                this.successMessage.style.display = 'none';
+            }
+
+            // 显示成功信息
+            showSuccess(message) {
+                this.successMessage.textContent = message;
+                this.successMessage.style.display = 'block';
+                this.errorMessage.style.display = 'none';
+            }
+
+            // 隐藏消息
+            hideMessages() {
+                this.errorMessage.style.display = 'none';
+                this.successMessage.style.display = 'none';
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            new SMSVerification();
+        });
+    </script>
+</body>
+</html>
